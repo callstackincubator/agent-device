@@ -16,6 +16,9 @@ export function snapshotCliOutput(params: {
     data,
     // Programmatic SDK callers can see `unchanged`; CLI --json hides it for schema compatibility.
     jsonData: withoutUnchanged(data),
+    stderr: params.result.snapshotDiagnostics?.warning
+      ? `${params.result.snapshotDiagnostics.warning}\n`
+      : undefined,
     text: formatSnapshotText(data, {
       raw: params.raw,
       flatten: params.interactiveOnly,

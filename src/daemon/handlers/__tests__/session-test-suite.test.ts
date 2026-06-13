@@ -14,6 +14,7 @@ import {
 } from '../../request-cancel.ts';
 import { withDeviceInventoryProvider } from '../../../core/dispatch-resolve.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
+import { makeAndroidSession } from '../../../__tests__/test-utils/index.ts';
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-test-suite-'));
@@ -239,6 +240,120 @@ test('test emits skip progress without synthetic duration', async () => {
     message: 'missing platform metadata for --platform android',
   });
   expect(testEvents[0]?.durationMs).toBeUndefined();
+});
+
+test('test aggregates snapshot diagnostics from replay session samples', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-snapshots-'));
+  fs.writeFileSync(path.join(root, '01-first.ad'), 'context platform=android\nopen "Demo"\n');
+  fs.writeFileSync(path.join(root, '02-second.ad'), 'context platform=android\nopen "Demo"\n');
+  let captures = 0;
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root, requestId: 'suite-snapshot-diagnostics' },
+      flags: { platform: 'android' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      const session =
+        sessionStore.get(req.session) ??
+        makeAndroidSession(req.session, {
+          snapshotDiagnostics: { samples: [] },
+        });
+      session.snapshotDiagnostics ??= { samples: [] };
+      captures += 1;
+      session.snapshotDiagnostics.samples.push({
+        durationMs: captures === 1 ? 400 : 1_900,
+        backend: 'android',
+        platform: 'android',
+      });
+      sessionStore.set(req.session, session);
+      return { ok: true, data: { replayed: 1, healed: 0 } };
+    },
+  });
+
+  const data = expectOkData(response);
+  expect(data.snapshotDiagnostics).toMatchObject({
+    stats: {
+      count: 2,
+      p50Ms: 400,
+      p95Ms: 1_900,
+      maxMs: 1_900,
+      platform: 'android',
+    },
+    warning: expect.stringContaining('p95 1900ms over 2 captures'),
+  });
+  expect((data.tests as Array<Record<string, unknown>>)[1]?.snapshotDiagnostics).toMatchObject({
+    stats: {
+      count: 1,
+      p95Ms: 1_900,
+    },
+  });
+});
+
+test('test aggregates snapshot diagnostics from failed replay session samples', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-snapshot-fail-'));
+  fs.writeFileSync(path.join(root, '01-fail.ad'), 'context platform=android\nopen "Demo"\n');
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root, requestId: 'suite-snapshot-diagnostics-fail' },
+      flags: { platform: 'android' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      const session =
+        sessionStore.get(req.session) ??
+        makeAndroidSession(req.session, {
+          snapshotDiagnostics: { samples: [] },
+        });
+      session.snapshotDiagnostics ??= { samples: [] };
+      session.snapshotDiagnostics.samples.push({
+        durationMs: 2_100,
+        backend: 'android',
+        platform: 'android',
+      });
+      sessionStore.set(req.session, session);
+      return {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: 'open failed' },
+      };
+    },
+  });
+
+  const data = expectOkData(response);
+  expect(data.failed).toBe(1);
+  expect(data.snapshotDiagnostics).toMatchObject({
+    stats: {
+      count: 1,
+      p95Ms: 2_100,
+      platform: 'android',
+    },
+    warning: expect.stringContaining('p95 2100ms over 1 captures'),
+  });
+  expect((data.tests as Array<Record<string, unknown>>)[0]).toMatchObject({
+    status: 'failed',
+    snapshotDiagnostics: {
+      stats: {
+        count: 1,
+        p95Ms: 2_100,
+      },
+    },
+  });
 });
 
 test('test stops the suite when the parent request is canceled during an active replay attempt', async () => {

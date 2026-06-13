@@ -178,6 +178,7 @@ export function serializeSnapshotResult(result: CaptureSnapshotResult): Record<s
     ...(result.visibility ? { visibility: result.visibility } : {}),
     ...publicSnapshotCaptureAnnotations(snapshotResultAnnotations(result)),
     ...(result.unchanged ? { unchanged: result.unchanged } : {}),
+    ...(result.snapshotDiagnostics ? { snapshotDiagnostics: result.snapshotDiagnostics } : {}),
   };
 }
 

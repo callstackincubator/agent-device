@@ -1,4 +1,5 @@
 import type { BackendSnapshotResult } from '../../../backend.ts';
+import type { SnapshotDiagnosticsSummary } from '../../../snapshot-diagnostics.ts';
 import type { AgentDeviceRuntime, CommandSessionRecord } from '../../../runtime-contract.ts';
 import {
   publicSnapshotCaptureAnnotations,
@@ -38,6 +39,7 @@ export type SnapshotCommandResult = {
   appBundleId?: string;
   visibility?: SnapshotVisibility;
   unchanged?: SnapshotUnchanged;
+  snapshotDiagnostics?: SnapshotDiagnosticsSummary;
 } & PublicSnapshotCaptureAnnotations;
 
 export type DiffSnapshotCommandResult = {
@@ -84,6 +86,9 @@ export const snapshotCommand: RuntimeCommand<
       warnings: capture.warnings,
     }),
     ...(unchanged ? { unchanged } : {}),
+    ...(capture.result.snapshotDiagnostics
+      ? { snapshotDiagnostics: capture.result.snapshotDiagnostics }
+      : {}),
     ...snapshotAppFields(capture),
   };
 };

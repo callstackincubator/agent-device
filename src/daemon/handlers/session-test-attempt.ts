@@ -16,6 +16,7 @@ import { runReplayTestAttempt } from './session-test-runtime.ts';
 import type { ReplayTestRuntimeDependencies } from './session-test-types.ts';
 import type { ReplayTestShardContext } from './session-test-sharding.ts';
 import { isRequestCanceled } from '../request-cancel.ts';
+import { readSnapshotDiagnosticsSummary } from '../../snapshot-diagnostics.ts';
 
 type ReplayTestCaseResult = Extract<ReplaySuiteTestResult, { status: 'passed' | 'failed' }>;
 type ReplayTestAttemptFailure = NonNullable<
@@ -271,9 +272,9 @@ function buildReplayTestPassedResult(
     finalAttemptDurationMs: outcome.finalAttemptDurationMs,
     attempts: outcome.attempts,
     artifactsDir: context.testArtifactsDir,
-    replayed: typeof response.data?.replayed === 'number' ? response.data.replayed : 0,
-    healed: typeof response.data?.healed === 'number' ? response.data.healed : 0,
+    ...replayTestResponseMetrics(response),
     ...replayTestWarningsResultMetadata(response.data?.warnings),
+    ...replayTestSnapshotDiagnosticsResultMetadata(response.data?.snapshotDiagnostics),
     ...replayTestShardResultMetadata(shard),
     ...(outcome.attemptFailures.length > 0 ? { attemptFailures: outcome.attemptFailures } : {}),
   };
@@ -311,6 +312,9 @@ function buildReplayTestFailedResult(
     attempts: outcome.attempts,
     artifactsDir: context.testArtifactsDir,
     error,
+    ...replayTestSnapshotDiagnosticsResultMetadata(
+      readReplayResponseSnapshotDiagnostics(outcome.finalResponse),
+    ),
     ...replayTestShardResultMetadata(shard),
   };
 }
@@ -322,12 +326,34 @@ function replayTestFailureError(
   return { code: 'COMMAND_FAILED', message: 'Unknown replay test failure' };
 }
 
+function replayTestResponseMetrics(
+  response: Extract<DaemonResponse, { ok: true }>,
+): Pick<Extract<ReplaySuiteTestResult, { status: 'passed' }>, 'replayed' | 'healed'> {
+  return {
+    replayed: typeof response.data?.replayed === 'number' ? response.data.replayed : 0,
+    healed: typeof response.data?.healed === 'number' ? response.data.healed : 0,
+  };
+}
+
 function replayTestWarningsResultMetadata(
   warnings: unknown,
 ): Pick<Extract<ReplaySuiteTestResult, { status: 'passed' }>, 'warnings'> {
   if (!Array.isArray(warnings)) return {};
   const filtered = warnings.filter((entry): entry is string => typeof entry === 'string');
   return filtered.length > 0 ? { warnings: filtered } : {};
+}
+
+function replayTestSnapshotDiagnosticsResultMetadata(
+  value: unknown,
+): Pick<ReplayTestCaseResult, 'snapshotDiagnostics'> {
+  const snapshotDiagnostics = readSnapshotDiagnosticsSummary(value);
+  return snapshotDiagnostics ? { snapshotDiagnostics } : {};
+}
+
+function readReplayResponseSnapshotDiagnostics(response: DaemonResponse | undefined): unknown {
+  return response?.ok
+    ? response.data?.snapshotDiagnostics
+    : response?.error.details?.snapshotDiagnostics;
 }
 
 function replayTestShardResultMetadata(

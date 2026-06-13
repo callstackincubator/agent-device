@@ -12,6 +12,7 @@ import {
   waitCliReader,
   waitDaemonWriter,
 } from './index.ts';
+import { snapshotCliOutput } from './output.ts';
 
 function flags(overrides: Partial<CliFlags> = {}): CliFlags {
   return overrides as CliFlags;
@@ -48,6 +49,32 @@ describe('capture command interface', () => {
       forceFull: true,
       timeoutMs: 10_000,
     });
+  });
+
+  test('routes snapshot diagnostics warning to stderr output', () => {
+    const output = snapshotCliOutput({
+      result: {
+        nodes: [],
+        truncated: false,
+        identifiers: {},
+        snapshotDiagnostics: {
+          stats: {
+            count: 2,
+            p50Ms: 400,
+            p95Ms: 1_900,
+            maxMs: 1_900,
+            slowThresholdMs: 1_500,
+            platform: 'ios',
+          },
+          warning: 'Warning: ios snapshots are slow in this run: p95 1900ms over 2 captures.',
+        },
+      },
+    });
+
+    expect(output.stderr).toBe(
+      'Warning: ios snapshots are slow in this run: p95 1900ms over 2 captures.\n',
+    );
+    expect(output.text).not.toContain('snapshots are slow');
   });
 
   test('reads screenshot path and writes screenshot flags', () => {

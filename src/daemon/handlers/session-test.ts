@@ -25,6 +25,7 @@ import {
   type ReplayTestShardPlan,
 } from './session-test-sharding.ts';
 import { isRequestCanceled } from '../request-cancel.ts';
+import { mergeSnapshotDiagnostics } from '../../snapshot-diagnostics.ts';
 
 type ReplayTestEntry = ReturnType<typeof discoverReplayTestEntries>[number];
 type ReplayTestQueuedEntry = {
@@ -408,6 +409,9 @@ function summarizeReplayTestResults(
   const failed = failedResults.length;
   const skipped = results.filter((result) => result.status === 'skipped').length;
   const executed = passed + failed;
+  const snapshotDiagnostics = mergeSnapshotDiagnostics(
+    results.map((result) => (result.status === 'skipped' ? undefined : result.snapshotDiagnostics)),
+  );
   return {
     total,
     executed,
@@ -418,5 +422,6 @@ function summarizeReplayTestResults(
     durationMs,
     failures: failedResults,
     tests: results,
+    ...(snapshotDiagnostics ? { snapshotDiagnostics } : {}),
   };
 }

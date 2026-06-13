@@ -23,6 +23,10 @@ import type {
   AppleXctracePerfCapture,
   AppleXctracePerfMode,
 } from '../platforms/ios/perf-xctrace.ts';
+import type {
+  SnapshotDiagnosticsState,
+  SnapshotDiagnosticsSummary,
+} from '../snapshot-diagnostics.ts';
 
 export type DaemonInstallSource = PublicDaemonInstallSource;
 export type SessionRuntimeHints = PublicSessionRuntimeHints;
@@ -69,6 +73,7 @@ export type ReplaySuiteTestPassed = {
   shardIndex?: number;
   shardCount?: number;
   deviceId?: string;
+  snapshotDiagnostics?: SnapshotDiagnosticsSummary;
 };
 
 export type ReplaySuiteTestFailed = {
@@ -83,6 +88,7 @@ export type ReplaySuiteTestFailed = {
   shardIndex?: number;
   shardCount?: number;
   deviceId?: string;
+  snapshotDiagnostics?: SnapshotDiagnosticsSummary;
 };
 
 export type ReplaySuiteTestSkipped = {
@@ -115,6 +121,7 @@ export type ReplaySuiteResult = {
   durationMs: number;
   failures: ReplaySuiteTestFailed[];
   tests: ReplaySuiteTestResult[];
+  snapshotDiagnostics?: SnapshotDiagnosticsSummary;
 };
 
 export type DaemonResponse = PublicDaemonResponse;
@@ -231,6 +238,7 @@ export type SessionState = {
   androidSnapshotFreshness?: AndroidSnapshotFreshness;
   postGestureStabilization?: PostGestureStabilization;
   pendingInteractionOutcome?: PendingInteractionOutcome;
+  snapshotDiagnostics?: SnapshotDiagnosticsState;
   trace?: {
     outPath: string;
     startedAt: number;

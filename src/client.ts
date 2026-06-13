@@ -43,6 +43,7 @@ import type {
   MetroPrepareOptions,
 } from './client-types.ts';
 import { readSerializedSnapshotCaptureAnnotations } from './snapshot-capture-annotations.ts';
+import { readSnapshotDiagnosticsSummary } from './snapshot-diagnostics.ts';
 
 export function createAgentDeviceClient(
   config: AgentDeviceClientConfig = {},
@@ -343,15 +344,22 @@ function optionalSnapshotResponseFields(
 ): Partial<
   Pick<
     CaptureSnapshotResult,
-    'androidSnapshot' | 'unchanged' | 'visibility' | 'warnings' | 'snapshotQuality'
+    | 'androidSnapshot'
+    | 'unchanged'
+    | 'visibility'
+    | 'warnings'
+    | 'snapshotQuality'
+    | 'snapshotDiagnostics'
   >
 > {
   const visibility = readObject(data.visibility);
   const unchanged = readObject(data.unchanged);
+  const snapshotDiagnostics = readSnapshotDiagnosticsSummary(data.snapshotDiagnostics);
   return {
     ...(visibility ? { visibility: visibility as CaptureSnapshotResult['visibility'] } : {}),
     ...readSerializedSnapshotCaptureAnnotations(data),
     ...(unchanged ? { unchanged: unchanged as CaptureSnapshotResult['unchanged'] } : {}),
+    ...(snapshotDiagnostics ? { snapshotDiagnostics } : {}),
   };
 }
 

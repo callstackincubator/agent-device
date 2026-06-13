@@ -15,6 +15,7 @@ import type { ClickButton } from './core/click-button.ts';
 import type { DeviceRotation } from './core/device-rotation.ts';
 import type { ScrollDirection } from './core/scroll-gesture.ts';
 import type { SessionSurface } from './core/session-surface.ts';
+import type { SnapshotDiagnosticsSummary } from './snapshot-diagnostics.ts';
 import type {
   SnapshotCaptureAnalysis,
   SnapshotCaptureAnnotations,
@@ -49,6 +50,7 @@ export type BackendSnapshotResult = {
   snapshot?: SnapshotState;
   appName?: string;
   appBundleId?: string;
+  snapshotDiagnostics?: SnapshotDiagnosticsSummary;
 } & SnapshotCaptureAnnotations;
 
 export type BackendSnapshotOptions = SnapshotOptions & {

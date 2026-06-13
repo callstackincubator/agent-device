@@ -17,6 +17,7 @@ import {
 import { createDaemonRuntimePolicy } from './runtime-policy.ts';
 import { createDaemonRuntimeSessionStore } from './runtime-session.ts';
 import { maybeBuildAndroidSnapshotTimeoutFailure } from './android-snapshot-timeout-evidence.ts';
+import { summarizeSnapshotDiagnostics } from '../snapshot-diagnostics.ts';
 
 export async function dispatchSnapshotViaRuntime(params: {
   req: DaemonRequest;
@@ -284,9 +285,11 @@ function createDaemonSnapshotBackend(params: {
         logPath,
         snapshotScope,
       });
+      const snapshotDiagnostics = summarizeSnapshotDiagnostics(session);
       return {
         snapshot: capture.snapshot,
         ...snapshotCaptureAnnotationsFrom(capture),
+        ...(snapshotDiagnostics ? { snapshotDiagnostics } : {}),
         appName: session?.appBundleId ? (session.appName ?? session.appBundleId) : undefined,
         appBundleId: session?.appBundleId,
       };
