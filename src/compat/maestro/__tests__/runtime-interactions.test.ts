@@ -242,9 +242,8 @@ test('invokeMaestroTapOn clicks explicit React Native overlay controls directly'
   expect(clicks).toEqual([['355', '30']]);
 });
 
-test('invokeMaestroSwipeScreen maps horizontal directional swipes to native gesture presets', async () => {
-  const gestures: string[][] = [];
-  const gestureFlags: Array<DaemonRequest['flags']> = [];
+test('invokeMaestroSwipeScreen maps Android horizontal directional swipes to content lane', async () => {
+  const swipes: string[][] = [];
   const response = await invokeMaestroSwipeScreen({
     baseReq: {
       token: 'test',
@@ -253,9 +252,9 @@ test('invokeMaestroSwipeScreen maps horizontal directional swipes to native gest
     },
     positionals: ['direction', 'left', '300'],
     invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
-      if (req.command === 'gesture') {
-        gestures.push(req.positionals ?? []);
-        gestureFlags.push(req.flags);
+      if (req.command === 'snapshot') return { ok: true, data: fullScreenSnapshot(400, 800) };
+      if (req.command === 'swipe') {
+        swipes.push(req.positionals ?? []);
         return { ok: true, data: {} };
       }
       return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
@@ -263,12 +262,11 @@ test('invokeMaestroSwipeScreen maps horizontal directional swipes to native gest
   });
 
   expect(response.ok).toBe(true);
-  expect(gestures).toEqual([['swipe', 'left', '300']]);
-  expect(gestureFlags[0]?.postGestureStabilization).toBeUndefined();
+  expect(swipes).toEqual([['340', '520', '60', '520', '300']]);
 });
 
-test('invokeMaestroSwipeScreen mirrors horizontal directional swipe presets', async () => {
-  const gestures: string[][] = [];
+test('invokeMaestroSwipeScreen mirrors Android horizontal directional content lane swipes', async () => {
+  const swipes: string[][] = [];
   const response = await invokeMaestroSwipeScreen({
     baseReq: {
       token: 'test',
@@ -277,8 +275,9 @@ test('invokeMaestroSwipeScreen mirrors horizontal directional swipe presets', as
     },
     positionals: ['direction', 'right', '300'],
     invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
-      if (req.command === 'gesture') {
-        gestures.push(req.positionals ?? []);
+      if (req.command === 'snapshot') return { ok: true, data: fullScreenSnapshot(400, 800) };
+      if (req.command === 'swipe') {
+        swipes.push(req.positionals ?? []);
         return { ok: true, data: {} };
       }
       return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
@@ -286,7 +285,7 @@ test('invokeMaestroSwipeScreen mirrors horizontal directional swipe presets', as
   });
 
   expect(response.ok).toBe(true);
-  expect(gestures).toEqual([['swipe', 'right', '300']]);
+  expect(swipes).toEqual([['60', '520', '340', '520', '300']]);
 });
 
 test('invokeMaestroSwipeOn resolves visible non-interactive text from a regular snapshot', async () => {

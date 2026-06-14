@@ -1116,6 +1116,7 @@ test('runReplayScriptFile scopes duplicate tap targets after native Maestro asse
     [
       ['wait', ['Albums', '17000']],
       ['snapshot', []],
+      ['snapshot', []],
       ['click', ['112', '242']],
     ],
   );
@@ -1782,8 +1783,8 @@ test('runReplayScriptFile uses Android content lane for Maestro horizontal scree
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
     [
-      ['gesture', ['swipe', 'left', '300']],
       ['snapshot', []],
+      ['swipe', ['340', '520', '60', '520', '300']],
       ['swipe', ['360', '520', '40', '520', '300']],
     ],
   );
