@@ -13,15 +13,13 @@ import { sleep } from '../../utils/timeouts.ts';
 import { pointForMaestroTapOnTarget, swipeCoordinatesFromTarget } from './runtime-geometry.ts';
 import {
   captureMaestroSnapshot,
-  clearMaestroRecentTap,
-  clearMaestroRecentSwipe,
+  clearMaestroRecoverableInteraction,
   clearMaestroVisibleContext,
   errorResponse,
   readCachedMaestroReferenceFrame,
   readMaestroVisibleContext,
   readSnapshotState,
-  rememberMaestroRecentSwipe,
-  rememberMaestroRecentTap,
+  rememberMaestroRecoverableInteraction,
   type FailedDaemonResponse,
   type MaestroRuntimeInvoke,
   type ReplayBaseRequest,
@@ -113,6 +111,7 @@ export async function invokeMaestroTapPointPercent(params: {
   baseReq: ReplayBaseRequest;
   positionals: string[];
   invoke: DaemonInvokeFn;
+  scope?: ReplayVarScope;
 }): Promise<DaemonResponse> {
   const [xValue, yValue] = params.positionals;
   const xPercent = Number(xValue);
@@ -141,7 +140,7 @@ export async function invokeMaestroTapPointPercent(params: {
   }
 
   const point = pointFromPercent(frame, xPercent, yPercent);
-  return await params.invoke({
+  const response = await params.invoke({
     ...params.baseReq,
     command: 'click',
     positionals: [String(point.x), String(point.y)],
@@ -150,6 +149,8 @@ export async function invokeMaestroTapPointPercent(params: {
       postGestureStabilization: true,
     },
   });
+  if (response.ok) clearMaestroRecoverableInteraction(params.scope);
+  return response;
 }
 
 export async function invokeMaestroSwipeScreen(params: {
@@ -243,8 +244,10 @@ async function invokeSwipeGesture(
     positionals: responsePositionals,
   });
   if (response.ok) {
-    clearMaestroRecentTap(params.scope);
-    rememberMaestroRecentSwipe(params.scope, { positionals: responsePositionals });
+    rememberMaestroRecoverableInteraction(params.scope, {
+      kind: 'swipe',
+      positionals: responsePositionals,
+    });
   }
   return response;
 }
@@ -527,9 +530,13 @@ async function clickMaestroResolvedTarget(
     },
   });
   if (response.ok) {
-    clearMaestroRecentSwipe(params.scope);
     clearMaestroVisibleContext(params.scope);
-    rememberMaestroRecentTap(params.scope, { selector, point, options: { ...options } });
+    rememberMaestroRecoverableInteraction(params.scope, {
+      kind: 'tap',
+      selector,
+      point,
+      options: { ...options },
+    });
   }
   return {
     response,
@@ -562,7 +569,7 @@ async function invokeMaestroFuzzyTapOn(
     },
   });
   if (findResponse.ok) {
-    clearMaestroRecentSwipe(params.scope);
+    clearMaestroRecoverableInteraction(params.scope);
     return { retry: false, response: findResponse };
   }
   return { retry: true, response: findResponse };

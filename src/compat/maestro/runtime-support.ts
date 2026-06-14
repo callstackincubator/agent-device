@@ -23,10 +23,20 @@ export type FailedDaemonResponse = DaemonFailureResponse;
 
 const maestroReferenceFrameCache = new WeakMap<ReplayVarScope, TouchReferenceFrame>();
 const maestroVisibleContextCache = new WeakMap<ReplayVarScope, { selector: string }>();
-const maestroRecentTapCache = new WeakMap<ReplayVarScope, MaestroRecentTap>();
-const maestroRecentSwipeCache = new WeakMap<ReplayVarScope, MaestroRecentSwipe>();
+const maestroRecoverableInteractionCache = new WeakMap<
+  ReplayVarScope,
+  MaestroRecoverableInteraction
+>();
 
-export type MaestroRecentTap = {
+export type MaestroRecoverableInteraction =
+  | ({
+      kind: 'tap';
+    } & MaestroRecoverableTap)
+  | ({
+      kind: 'swipe';
+    } & MaestroRecoverableSwipe);
+
+export type MaestroRecoverableTap = {
   selector: string;
   point: Point;
   options?: {
@@ -35,7 +45,7 @@ export type MaestroRecentTap = {
   };
 };
 
-export type MaestroRecentSwipe = {
+export type MaestroRecoverableSwipe = {
   positionals: string[];
 };
 
@@ -99,44 +109,24 @@ export function clearMaestroVisibleContext(scope: ReplayVarScope | undefined): v
   if (scope) maestroVisibleContextCache.delete(scope);
 }
 
-export function rememberMaestroRecentTap(
+export function rememberMaestroRecoverableInteraction(
   scope: ReplayVarScope | undefined,
-  tap: MaestroRecentTap,
+  interaction: MaestroRecoverableInteraction,
 ): void {
-  if (scope) maestroRecentTapCache.set(scope, tap);
+  if (scope) maestroRecoverableInteractionCache.set(scope, interaction);
 }
 
-export function consumeMaestroRecentTap(
+export function consumeMaestroRecoverableInteraction(
   scope: ReplayVarScope | undefined,
-): MaestroRecentTap | undefined {
+): MaestroRecoverableInteraction | undefined {
   if (!scope) return undefined;
-  const tap = maestroRecentTapCache.get(scope);
-  maestroRecentTapCache.delete(scope);
-  return tap;
+  const interaction = maestroRecoverableInteractionCache.get(scope);
+  maestroRecoverableInteractionCache.delete(scope);
+  return interaction;
 }
 
-export function clearMaestroRecentTap(scope: ReplayVarScope | undefined): void {
-  if (scope) maestroRecentTapCache.delete(scope);
-}
-
-export function rememberMaestroRecentSwipe(
-  scope: ReplayVarScope | undefined,
-  swipe: MaestroRecentSwipe,
-): void {
-  if (scope) maestroRecentSwipeCache.set(scope, swipe);
-}
-
-export function consumeMaestroRecentSwipe(
-  scope: ReplayVarScope | undefined,
-): MaestroRecentSwipe | undefined {
-  if (!scope) return undefined;
-  const swipe = maestroRecentSwipeCache.get(scope);
-  maestroRecentSwipeCache.delete(scope);
-  return swipe;
-}
-
-export function clearMaestroRecentSwipe(scope: ReplayVarScope | undefined): void {
-  if (scope) maestroRecentSwipeCache.delete(scope);
+export function clearMaestroRecoverableInteraction(scope: ReplayVarScope | undefined): void {
+  if (scope) maestroRecoverableInteractionCache.delete(scope);
 }
 
 function rememberMaestroReferenceFrame(

@@ -7,8 +7,8 @@ import {
   invokeMaestroAssertNotVisible,
   invokeMaestroAssertVisible,
 } from '../runtime-assertions.ts';
-import { invokeMaestroSwipeScreen } from '../runtime-interactions.ts';
-import { rememberMaestroRecentTap } from '../runtime-support.ts';
+import { invokeMaestroSwipeScreen, invokeMaestroTapOn } from '../runtime-interactions.ts';
+import { rememberMaestroRecoverableInteraction } from '../runtime-support.ts';
 import type { DaemonRequest, DaemonResponse } from '../../../daemon/types.ts';
 import type { SnapshotState } from '../../../utils/snapshot.ts';
 
@@ -217,7 +217,8 @@ test('invokeMaestroAssertVisible falls back to one snapshot after native wait mi
 test('invokeMaestroAssertVisible re-resolves the previous Android tap when its target remains visible', async () => {
   const scope = { values: {} };
   const calls: Array<[string, string[] | undefined]> = [];
-  rememberMaestroRecentTap(scope, {
+  rememberMaestroRecoverableInteraction(scope, {
+    kind: 'tap',
     selector: 'label="Go to Contacts" || text="Go to Contacts" || id="Go to Contacts"',
     point: { x: 999, y: 999 },
   });
@@ -272,7 +273,8 @@ test('invokeMaestroAssertVisible re-resolves the previous Android tap when its t
 test('invokeMaestroAssertVisible retries previous Android text tap when point resolution misses', async () => {
   const scope = { values: {} };
   const calls: Array<[string, string[] | undefined]> = [];
-  rememberMaestroRecentTap(scope, {
+  rememberMaestroRecoverableInteraction(scope, {
+    kind: 'tap',
     selector: 'label="Push article" || text="Push article" || id="Push article"',
     point: { x: 999, y: 999 },
   });
@@ -333,7 +335,8 @@ test('invokeMaestroAssertVisible retries previous Android text tap when point re
 test('invokeMaestroAssertVisible does not retry stale Android taps after swipes', async () => {
   const scope = { values: {} };
   const calls: Array<[string, string[] | undefined]> = [];
-  rememberMaestroRecentTap(scope, {
+  rememberMaestroRecoverableInteraction(scope, {
+    kind: 'tap',
     selector: 'label="Contacts" || text="Contacts" || id="Contacts"',
     point: { x: 120, y: 720 },
   });
@@ -406,6 +409,71 @@ test('invokeMaestroAssertVisible does not retry stale Android taps after swipes'
     ['snapshot', []],
     ['swipe', ['332', '549', '59', '549', '300']],
     ['wait', ['What is Lorem Ipsum?', '2000']],
+    ['snapshot', []],
+  ]);
+});
+
+test('invokeMaestroAssertVisible does not retry stale Android taps after fuzzy taps', async () => {
+  const scope = { values: {} };
+  const calls: Array<[string, string[] | undefined]> = [];
+  rememberMaestroRecoverableInteraction(scope, {
+    kind: 'tap',
+    selector: 'label="Contacts" || text="Contacts" || id="Contacts"',
+    point: { x: 120, y: 720 },
+  });
+
+  const tapResponse = await invokeMaestroTapOn({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'android' },
+    },
+    scope,
+    positionals: ['label="Search" || text="Search" || id="Search"'],
+    invoke: async (req): Promise<DaemonResponse> => {
+      calls.push([req.command, req.positionals]);
+      if (req.command === 'snapshot') return { ok: true, data: snapshot([node('Search')]) };
+      if (req.command === 'click') {
+        return { ok: false, error: { code: 'COMMAND_FAILED', message: 'coordinate miss' } };
+      }
+      if (req.command === 'find') return { ok: true, data: {} };
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(tapResponse.ok, true);
+
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'android' },
+    },
+    scope,
+    positionals: [
+      'label="Marissa Castillo" || text="Marissa Castillo" || id="Marissa Castillo"',
+      '0',
+    ],
+    invoke: async (req): Promise<DaemonResponse> => {
+      calls.push([req.command, req.positionals]);
+      if (req.command === 'wait') {
+        return {
+          ok: false,
+          error: { code: 'COMMAND_FAILED', message: 'wait timed out for text: Marissa Castillo' },
+        };
+      }
+      if (req.command === 'snapshot') return { ok: true, data: snapshot([node('Settings')]) };
+      if (req.command === 'click') return { ok: true, data: {} };
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(response.ok, false);
+  assert.deepEqual(calls, [
+    ['snapshot', []],
+    ['click', ['80', '100']],
+    ['find', ['Search', 'click']],
+    ['wait', ['Marissa Castillo', '0']],
     ['snapshot', []],
   ]);
 });
