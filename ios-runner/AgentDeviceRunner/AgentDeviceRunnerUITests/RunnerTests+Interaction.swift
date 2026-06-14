@@ -1,5 +1,13 @@
 import XCTest
 
+private enum RunnerInterfaceOrientation {
+  static let unknown = 0
+  static let portrait = 1
+  static let portraitUpsideDown = 2
+  static let landscapeRight = 3
+  static let landscapeLeft = 4
+}
+
 extension RunnerTests {
   struct TouchVisualizationFrame {
     let x: Double
@@ -634,6 +642,50 @@ extension RunnerTests {
     return performCoordinateDrag(app: app, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
   }
 
+  /// Rotates an interface-oriented point into the device-native (portrait) space the
+  /// synthesized event path consumes — synthesized events skip XCTest's orientation
+  /// handling, so without this a landscape tap lands in the wrong place.
+  func nativeSynthesizedPoint(
+    orientedX x: Double,
+    orientedY y: Double,
+    in frame: CGRect,
+    interfaceOrientation: Int
+  ) -> CGPoint {
+    let localX = x - Double(frame.minX)
+    let localY = y - Double(frame.minY)
+    let width = Double(frame.width)
+    let height = Double(frame.height)
+    switch interfaceOrientation {
+    case RunnerInterfaceOrientation.landscapeRight:
+      return CGPoint(x: height - localY, y: localX)
+    case RunnerInterfaceOrientation.landscapeLeft:
+      return CGPoint(x: localY, y: width - localX)
+    case RunnerInterfaceOrientation.portraitUpsideDown:
+      return CGPoint(x: width - localX, y: height - localY)
+    default:  // portrait or unknown
+      return CGPoint(x: localX, y: localY)
+    }
+  }
+
+  /// Rotates an interface-oriented translation vector into the same native
+  /// coordinate space as `nativeSynthesizedPoint`.
+  func nativeSynthesizedVector(
+    orientedDx dx: Double,
+    orientedDy dy: Double,
+    interfaceOrientation: Int
+  ) -> CGVector {
+    switch interfaceOrientation {
+    case RunnerInterfaceOrientation.landscapeRight:
+      return CGVector(dx: -dy, dy: dx)
+    case RunnerInterfaceOrientation.landscapeLeft:
+      return CGVector(dx: dy, dy: -dx)
+    case RunnerInterfaceOrientation.portraitUpsideDown:
+      return CGVector(dx: -dx, dy: -dy)
+    default:  // portrait or unknown
+      return CGVector(dx: dx, dy: dy)
+    }
+  }
+
   func synthesizedDragAt(
     app: XCUIApplication,
     x: Double,
@@ -643,12 +695,16 @@ extension RunnerTests {
     durationMs: Double
   ) -> RunnerInteractionOutcome {
 #if os(iOS)
+    let orientation = Int(RunnerSynthesizedGesture.interfaceOrientation(forApplication: app))
+    let frame = app.frame
+    let start = nativeSynthesizedPoint(orientedX: x, orientedY: y, in: frame, interfaceOrientation: orientation)
+    let end = nativeSynthesizedPoint(orientedX: x2, orientedY: y2, in: frame, interfaceOrientation: orientation)
     if let message = RunnerSynthesizedGesture.synthesizeSwipe(
       withApplication: app,
-      x: x,
-      y: y,
-      x2: x2,
-      y2: y2,
+      x: Double(start.x),
+      y: Double(start.y),
+      x2: Double(end.x),
+      y2: Double(end.y),
       durationMs: durationMs
     ) {
       return .unsupported(
@@ -672,10 +728,12 @@ extension RunnerTests {
 
   func synthesizedTapAt(app: XCUIApplication, x: Double, y: Double) -> RunnerInteractionOutcome {
 #if os(iOS)
+    let orientation = Int(RunnerSynthesizedGesture.interfaceOrientation(forApplication: app))
+    let point = nativeSynthesizedPoint(orientedX: x, orientedY: y, in: app.frame, interfaceOrientation: orientation)
     if let message = RunnerSynthesizedGesture.synthesizeTap(
       withApplication: app,
-      x: x,
-      y: y
+      x: Double(point.x),
+      y: Double(point.y)
     ) {
       return .unsupported(
         message: message,
@@ -952,12 +1010,15 @@ extension RunnerTests {
   ) -> RunnerInteractionOutcome {
 #if os(iOS)
     let target = interactionRoot(app: app)
+    let orientation = Int(RunnerSynthesizedGesture.interfaceOrientation(forApplication: app))
+    let point = nativeSynthesizedPoint(orientedX: x, orientedY: y, in: app.frame, interfaceOrientation: orientation)
+    let vector = nativeSynthesizedVector(orientedDx: dx, orientedDy: dy, interfaceOrientation: orientation)
     if let message = RunnerSynthesizedGesture.synthesizeTransform(
       withApplication: app,
-      x: x,
-      y: y,
-      dx: dx,
-      dy: dy,
+      x: Double(point.x),
+      y: Double(point.y),
+      dx: Double(vector.dx),
+      dy: Double(vector.dy),
       scale: scale,
       degrees: degrees,
       radius: transformGestureRadius(frame: target.frame, scale: scale),
@@ -1090,5 +1151,52 @@ extension RunnerTests {
     )
     let element = app.descendants(matching: .any).matching(predicate).firstMatch
     return element.exists ? element : nil
+  }
+
+  // Identity in portrait/unknown, 90° per landscape, 180° upside-down.
+  func testNativeSynthesizedPointRotatesByInterfaceOrientation() {
+    let portrait = CGRect(x: 0, y: 0, width: 834, height: 1210)
+    let landscape = CGRect(x: 0, y: 0, width: 1210, height: 834)
+    let offsetLandscape = CGRect(x: 10, y: 20, width: 1210, height: 834)
+    // (frame, UIInterfaceOrientation, expected native point) for a tap at (170, 268).
+    let cases: [(CGRect, Int, CGPoint)] = [
+      (portrait, RunnerInterfaceOrientation.portrait, CGPoint(x: 170, y: 268)),
+      (landscape, RunnerInterfaceOrientation.landscapeRight, CGPoint(x: 566, y: 170)),
+      (landscape, RunnerInterfaceOrientation.landscapeLeft, CGPoint(x: 268, y: 1040)),
+      (portrait, RunnerInterfaceOrientation.portraitUpsideDown, CGPoint(x: 664, y: 942)),
+      (portrait, RunnerInterfaceOrientation.unknown, CGPoint(x: 170, y: 268)),
+    ]
+    for (frame, orientation, expected) in cases {
+      XCTAssertEqual(
+        nativeSynthesizedPoint(orientedX: 170, orientedY: 268, in: frame, interfaceOrientation: orientation),
+        expected,
+        "interfaceOrientation \(orientation)"
+      )
+    }
+    XCTAssertEqual(
+      nativeSynthesizedPoint(
+        orientedX: 180,
+        orientedY: 288,
+        in: offsetLandscape,
+        interfaceOrientation: RunnerInterfaceOrientation.landscapeLeft
+      ),
+      CGPoint(x: 268, y: 1040),
+      "non-zero frame origin is localized before rotation"
+    )
+  }
+
+  func testNativeSynthesizedVectorRotatesByInterfaceOrientation() {
+    let cases: [(Int, CGVector)] = [
+      (RunnerInterfaceOrientation.portrait, CGVector(dx: 40, dy: -20)),
+      (RunnerInterfaceOrientation.landscapeRight, CGVector(dx: 20, dy: 40)),
+      (RunnerInterfaceOrientation.landscapeLeft, CGVector(dx: -20, dy: -40)),
+      (RunnerInterfaceOrientation.portraitUpsideDown, CGVector(dx: -40, dy: 20)),
+      (RunnerInterfaceOrientation.unknown, CGVector(dx: 40, dy: -20)),
+    ]
+    for (orientation, expected) in cases {
+      let vector = nativeSynthesizedVector(orientedDx: 40, orientedDy: -20, interfaceOrientation: orientation)
+      XCTAssertEqual(vector.dx, expected.dx, "dx interfaceOrientation \(orientation)")
+      XCTAssertEqual(vector.dy, expected.dy, "dy interfaceOrientation \(orientation)")
+    }
   }
 }

@@ -3,7 +3,7 @@
     "name": "Agent Device Tester",
     "slug": "agent-device-test-app",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "plugins": ["expo-router"],
