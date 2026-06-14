@@ -5,7 +5,7 @@ import type { DaemonResponse } from '../../daemon/types.ts';
 import type { DaemonFailureResponse } from '../../daemon/handlers/response.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import type { SnapshotState } from '../../utils/snapshot.ts';
+import type { Point, SnapshotState } from '../../utils/snapshot.ts';
 import { buildSnapshotDisplayLines } from '../../utils/snapshot-lines.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { pointForMaestroTapOnTarget } from './runtime-geometry.ts';
@@ -32,7 +32,7 @@ const MAESTRO_ASSERTION_POLICY = {
   animationPollMs: 250,
   assertVisibleGraceMs: 1000,
   assertVisiblePollMs: 250,
-  assertVisibleRetryTapTimeoutMs: 5000,
+  assertVisibleRetryTimeoutMs: 5000,
   assertNotVisiblePollMs: 250,
   defaultAssertNotVisibleTimeoutMs: 3000,
 } as const;
@@ -51,9 +51,9 @@ type MaestroVisibilityAssertionArgs = {
   timeoutMs: number;
 };
 
-type MaestroRetryTapTarget =
-  | { kind: 'point'; point: { x: number; y: number } }
-  | { kind: 'text'; query: string };
+type MaestroRetryTapTarget = { kind: 'point'; point: Point } | { kind: 'text'; query: string };
+
+type MaestroVisibleRecoveryFlag = 'retryTap' | 'retrySwipe';
 
 type MaestroAssertionRuntimeParams = {
   baseReq: ReplayBaseRequest;
@@ -183,10 +183,8 @@ async function invokeSnapshotMaestroAssertVisible(
       selector: args.selector,
       timeoutMs: args.timeoutMs,
     });
-  const retryResponse = await retryRecentAndroidTapAfterVisibleMiss(params, args, lastSnapshot);
-  if (retryResponse) return retryResponse;
-  const swipeRetryResponse = await retryRecentAndroidSwipeAfterVisibleMiss(params, args);
-  if (swipeRetryResponse) return swipeRetryResponse;
+  const recoveryResponse = await recoverFromAndroidVisibleMiss(params, args, lastSnapshot);
+  if (recoveryResponse) return recoveryResponse;
   return withMaestroFailureSnapshotArtifacts(response, lastSnapshot, params.baseReq);
 }
 
@@ -200,11 +198,21 @@ async function invokeSingleSnapshotMaestroAssertVisible(
   if (sample.visible) return visibleAssertionResponse(sample.response, args.selector, startedAt);
   const failedSample = handleFailedVisibleSample(params.baseReq, args, sample, startedAt);
   if (failedSample.kind === 'return') return failedSample.response;
-  const retryResponse = await retryRecentAndroidTapAfterVisibleMiss(params, args, sample.snapshot);
-  if (retryResponse) return retryResponse;
-  const swipeRetryResponse = await retryRecentAndroidSwipeAfterVisibleMiss(params, args);
-  if (swipeRetryResponse) return swipeRetryResponse;
+  const recoveryResponse = await recoverFromAndroidVisibleMiss(params, args, sample.snapshot);
+  if (recoveryResponse) return recoveryResponse;
   return withMaestroFailureSnapshotArtifacts(fallbackResponse, sample.snapshot, params.baseReq);
+}
+
+async function recoverFromAndroidVisibleMiss(
+  params: MaestroAssertionRuntimeParams,
+  args: MaestroVisibilityAssertionArgs,
+  snapshot: SnapshotState | undefined,
+): Promise<DaemonResponse | null> {
+  if (params.baseReq.flags?.platform !== 'android') return null;
+
+  const tapRetryResponse = await retryRecentAndroidTapAfterVisibleMiss(params, args, snapshot);
+  if (tapRetryResponse) return tapRetryResponse;
+  return await retryRecentAndroidSwipeAfterVisibleMiss(params, args);
 }
 
 async function retryRecentAndroidTapAfterVisibleMiss(
@@ -212,7 +220,7 @@ async function retryRecentAndroidTapAfterVisibleMiss(
   args: MaestroVisibilityAssertionArgs,
   snapshot: SnapshotState | undefined,
 ): Promise<DaemonResponse | null> {
-  if (params.baseReq.flags?.platform !== 'android' || !snapshot) return null;
+  if (!snapshot) return null;
 
   const recentTap = consumeMaestroRecentTap(params.scope);
   if (!recentTap) return null;
@@ -227,54 +235,19 @@ async function retryRecentAndroidTapAfterVisibleMiss(
       tapSelector: recentTap.selector,
       originalPoint: recentTap.point,
       retryTarget: retryTarget.target,
-      timeoutMs: MAESTRO_ASSERTION_POLICY.assertVisibleRetryTapTimeoutMs,
+      timeoutMs: MAESTRO_ASSERTION_POLICY.assertVisibleRetryTimeoutMs,
     },
   });
 
   const clickResponse = await invokeRecentTapRetry(params, retryTarget.target);
   if (!clickResponse.ok) return null;
-
-  const retryArgs = {
-    ...args,
-    timeoutMs: Math.min(args.timeoutMs, MAESTRO_ASSERTION_POLICY.assertVisibleRetryTapTimeoutMs),
-  };
-  const nativeWaitQuery = readNativeVisibleWaitQuery(params.baseReq, retryArgs.selector);
-  if (!nativeWaitQuery) return await invokeSnapshotMaestroAssertVisible(params, retryArgs);
-
-  const retryStartedAt = Date.now();
-  const nativeResponse = await runNativeVisibleWait(params, retryArgs, nativeWaitQuery);
-  if (nativeResponse.ok) {
-    rememberMaestroVisibleContext(params.scope, retryArgs.selector);
-    return visibleAssertionResponse(
-      {
-        ok: true,
-        data: {
-          selector: retryArgs.selector,
-          nativeWait: true,
-          retryTap: true,
-          query: nativeWaitQuery,
-          response: nativeResponse.data,
-        },
-      },
-      retryArgs.selector,
-      retryStartedAt,
-    );
-  }
-
-  return await invokeSingleSnapshotMaestroAssertVisible(
-    params,
-    retryArgs,
-    nativeResponse,
-    retryStartedAt,
-  );
+  return await confirmVisibleAfterAndroidRecovery(params, args, 'retryTap');
 }
 
 async function retryRecentAndroidSwipeAfterVisibleMiss(
   params: MaestroAssertionRuntimeParams,
   args: MaestroVisibilityAssertionArgs,
 ): Promise<DaemonResponse | null> {
-  if (params.baseReq.flags?.platform !== 'android') return null;
-
   const recentSwipe = consumeMaestroRecentSwipe(params.scope);
   if (!recentSwipe) return null;
 
@@ -284,16 +257,23 @@ async function retryRecentAndroidSwipeAfterVisibleMiss(
     data: {
       selector: args.selector,
       swipePositionals: recentSwipe.positionals,
-      timeoutMs: MAESTRO_ASSERTION_POLICY.assertVisibleRetryTapTimeoutMs,
+      timeoutMs: MAESTRO_ASSERTION_POLICY.assertVisibleRetryTimeoutMs,
     },
   });
 
   const swipeResponse = await invokeRecentSwipeRetry(params, recentSwipe);
   if (!swipeResponse.ok) return null;
+  return await confirmVisibleAfterAndroidRecovery(params, args, 'retrySwipe');
+}
 
+async function confirmVisibleAfterAndroidRecovery(
+  params: MaestroAssertionRuntimeParams,
+  args: MaestroVisibilityAssertionArgs,
+  recoveryFlag: MaestroVisibleRecoveryFlag,
+): Promise<DaemonResponse> {
   const retryArgs = {
     ...args,
-    timeoutMs: Math.min(args.timeoutMs, MAESTRO_ASSERTION_POLICY.assertVisibleRetryTapTimeoutMs),
+    timeoutMs: Math.min(args.timeoutMs, MAESTRO_ASSERTION_POLICY.assertVisibleRetryTimeoutMs),
   };
   const nativeWaitQuery = readNativeVisibleWaitQuery(params.baseReq, retryArgs.selector);
   if (!nativeWaitQuery) return await invokeSnapshotMaestroAssertVisible(params, retryArgs);
@@ -308,7 +288,7 @@ async function retryRecentAndroidSwipeAfterVisibleMiss(
         data: {
           selector: retryArgs.selector,
           nativeWait: true,
-          retrySwipe: true,
+          [recoveryFlag]: true,
           query: nativeWaitQuery,
           response: nativeResponse.data,
         },
