@@ -137,10 +137,13 @@ export function GestureLab() {
   const panChanged = Math.abs(transform.offsetX) > 0 || Math.abs(transform.offsetY) > 0;
   const pinchChanged = Math.abs(transform.scale - 1) > 0.01;
   const rotateChanged = rotationDegrees !== 0;
+  const changeStatusLabel = `pan changed ${panChanged ? 'yes' : 'no'}, pinch changed ${
+    pinchChanged ? 'yes' : 'no'
+  }, rotate changed ${rotateChanged ? 'yes' : 'no'}`;
 
   return (
     <SectionCard
-      subtitle="Image target for pan, pinch, rotate, and fling."
+      subtitle={`Image target for pan, pinch, rotate, and fling. ${changeStatusLabel}`}
       title="Gesture lab"
       testID="gesture-lab-card"
     >
@@ -228,8 +231,7 @@ export function GestureLab() {
           fling {counts.fling}
         </Text>
         <Text style={styles.metric} testID="gesture-change-status">
-          pan changed {panChanged ? 'yes' : 'no'}, pinch changed{' '}
-          {pinchChanged ? 'yes' : 'no'}, rotate changed {rotateChanged ? 'yes' : 'no'}
+          {changeStatusLabel}
         </Text>
       </View>
     </SectionCard>
