@@ -1,0 +1,106 @@
+[
+  {
+    "path": "/figma/hero-shader.webp",
+    "logicalWidth": 1440,
+    "logicalHeight": 806,
+    "density": 2,
+    "maxBytes": 180000,
+    "usedBy": "Shared dark hero and noise panels"
+  },
+  {
+    "path": "/figma/solution-media.webp",
+    "logicalWidth": 1088,
+    "logicalHeight": 612,
+    "density": 2,
+    "maxBytes": 180000,
+    "usedBy": "Home video poster"
+  },
+  {
+    "path": "/figma/agentic-development-hero.webp",
+    "logicalWidth": 1071,
+    "logicalHeight": 612,
+    "density": 2,
+    "maxBytes": 180000,
+    "usedBy": "Agentic Development hero workflow diagram"
+  },
+  {
+    "path": "/figma/callstack-card-bg.webp",
+    "logicalWidth": 672,
+    "logicalHeight": 360,
+    "density": 2,
+    "maxBytes": 100000,
+    "usedBy": "Callstack React Native proof card background"
+  },
+  {
+    "path": "/figma/lane-interact.webp",
+    "logicalWidth": 528,
+    "logicalHeight": 868,
+    "density": 4,
+    "maxBytes": 300000,
+    "usedBy": "Interact toolkit lane"
+  },
+  {
+    "path": "/figma/lane-debug.webp",
+    "logicalWidth": 528,
+    "logicalHeight": 868,
+    "density": 4,
+    "maxBytes": 300000,
+    "usedBy": "Debug toolkit lane"
+  },
+  {
+    "path": "/figma/lane-profile.webp",
+    "logicalWidth": 528,
+    "logicalHeight": 868,
+    "density": 4,
+    "maxBytes": 300000,
+    "usedBy": "Profile toolkit lane"
+  },
+  {
+    "path": "/figma/lane-capture.webp",
+    "logicalWidth": 528,
+    "logicalHeight": 868,
+    "density": 4,
+    "maxBytes": 300000,
+    "usedBy": "Capture toolkit lane"
+  },
+  {
+    "path": "/figma/lane-test.webp",
+    "logicalWidth": 528,
+    "logicalHeight": 868,
+    "density": 4,
+    "maxBytes": 300000,
+    "usedBy": "Test E2E toolkit lane"
+  },
+  {
+    "path": "/figma/logos/evernote.svg",
+    "logicalWidth": 111,
+    "logicalHeight": 24,
+    "density": 2,
+    "maxBytes": 12000,
+    "usedBy": "Callstack proof logo"
+  },
+  {
+    "path": "/figma/logos/ticketmaster.svg",
+    "logicalWidth": 101,
+    "logicalHeight": 14,
+    "density": 2,
+    "maxBytes": 8000,
+    "usedBy": "Callstack proof logo"
+  },
+  {
+    "path": "/figma/logos/expensify.svg",
+    "logicalWidth": 76,
+    "logicalHeight": 18,
+    "density": 2,
+    "maxBytes": 10000,
+    "usedBy": "Callstack proof logo"
+  },
+  {
+    "path": "/figma/logos/react-foundation.webp",
+    "logicalWidth": 320,
+    "logicalHeight": 145,
+    "density": 2,
+    "maxBytes": 60000,
+    "usedBy": "React Foundation proof card logo"
+  }
+]
